@@ -38,9 +38,7 @@ namespace StudentManagementApi.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("UTC_TIMESTAMP()");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<Guid>("StudentId")
                         .HasColumnType("char(36)");
@@ -71,9 +69,7 @@ namespace StudentManagementApi.Migrations
                         .HasColumnType("varchar(200)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("UTC_TIMESTAMP()");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -93,9 +89,7 @@ namespace StudentManagementApi.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("UTC_TIMESTAMP()");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<Guid>("StudentId")
                         .HasColumnType("char(36)");
@@ -117,9 +111,7 @@ namespace StudentManagementApi.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("UTC_TIMESTAMP()");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
                         .IsRequired()

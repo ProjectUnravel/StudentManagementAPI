@@ -8,6 +8,6 @@ namespace StudentManagementApi.Controllers
     public class HealthController : ControllerBase
     {
         [HttpGet("")]
-        public async Task<IActionResult> HealthCheck() => Ok("APi is running");
+        public async Task<IActionResult> HealthCheck() => Ok("APi is running!!!");
     }
 }

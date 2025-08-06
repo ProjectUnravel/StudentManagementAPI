@@ -28,7 +28,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.Gender).IsRequired().HasMaxLength(10);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("UTC_TIMESTAMP()");
+            //entity.Property(e => e.CreatedAt).HasDefaultValueSql();
             
             entity.HasIndex(e => e.Email).IsUnique();
         });
@@ -40,7 +40,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.CourseCode).IsRequired().HasMaxLength(20);
             entity.Property(e => e.CourseTitle).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("UTC_TIMESTAMP()");
+            //entity.Property(e => e.CreatedAt).HasDefaultValueSql();
             
             entity.HasIndex(e => e.CourseCode).IsUnique();
         });
@@ -50,7 +50,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("UTC_TIMESTAMP()");
+            //entity.Property(e => e.CreatedAt).HasDefaultValueSql();
 
             entity.HasOne(e => e.Student)
                   .WithMany(s => s.CourseRegistrations)
@@ -71,7 +71,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("UTC_TIMESTAMP()");
+            //entity.Property(e => e.CreatedAt).HasDefaultValueSql();
 
             entity.HasOne(e => e.Student)
                   .WithMany(s => s.Attendances)
