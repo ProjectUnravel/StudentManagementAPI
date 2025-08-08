@@ -13,6 +13,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Course> Courses { get; set; }
     public DbSet<CourseRegistration> CourseRegistrations { get; set; }
     public DbSet<Attendance> Attendances { get; set; }
+    public DbSet<Team> Teams { get; set; }
+    public DbSet<TeamMember> TeamMembers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +84,20 @@ public class ApplicationDbContext : DbContext
                  .WithMany(s => s.Attendances)
                  .HasForeignKey(e => e.CourseId)
                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Team>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedOnAdd();
+
+        });
+
+        modelBuilder.Entity<TeamMember>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedOnAdd();
+
         });
     }
 }

@@ -23,10 +23,7 @@ public class CourseRegistrationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<CourseRegistrationDto>>>> GetCourseRegistrations([FromQuery] PaginationRequest pagination)
     {
-        var query = _context.CourseRegistrations
-            .Include(cr => cr.Student)
-            .Include(cr => cr.Course)
-            .AsQueryable();
+        var query = _context.CourseRegistrations.AsNoTracking();
 
         // Apply search filter
         if (!string.IsNullOrEmpty(pagination.Search))
@@ -52,6 +49,8 @@ public class CourseRegistrationsController : ControllerBase
             _ => query.OrderByDescending(cr => cr.CreatedAt)
         };
 
+        query = query.Include(cr => cr.Student).Include(cr => cr.Course);
+
         var (registrations, totalCount) = await query.ToPaginatedListAsync(pagination);
         var registrationDtos = registrations.Select(cr => cr.ToDto()).ToList();
         var metaData = MetaData.Create(pagination.PageIndex, pagination.PageSize, totalCount);
@@ -59,6 +58,7 @@ public class CourseRegistrationsController : ControllerBase
         var response = ApiResponse<List<CourseRegistrationDto>>.Ok(registrationDtos, "Course registrations retrieved successfully", metaData);
         return Ok(response);
     }
+
 
     // GET: api/CourseRegistrations/5
     [HttpGet("{id}")]
@@ -100,19 +100,41 @@ public class CourseRegistrationsController : ControllerBase
 
     // GET: api/CourseRegistrations/course/5
     [HttpGet("course/{courseId}")]
-    public async Task<ActionResult<ApiResponse<List<CourseRegistrationDto>>>> GetCourseStudents(Guid courseId, [FromQuery] PaginationRequest pagination)
+    public async Task<ActionResult<ApiResponse<List<CourseRegistrationDto>>>> GetCourseRegistrations([FromQuery] PaginationRequest pagination, [FromRoute] Guid courseId)
     {
-        var query = _context.CourseRegistrations
-            .Include(cr => cr.Student)
-            .Include(cr => cr.Course)
-            .Where(cr => cr.CourseId == courseId)
-            .OrderByDescending(cr => cr.CreatedAt);
+        var query = _context.CourseRegistrations.AsNoTracking().Where(x => x.CourseId == courseId);
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(pagination.Search))
+        {
+            query = query.Where(cr => cr.Student.FirstName.Contains(pagination.Search) ||
+                                    cr.Student.LastName.Contains(pagination.Search) ||
+                                    cr.Course.CourseCode.Contains(pagination.Search) ||
+                                    cr.Course.CourseTitle.Contains(pagination.Search));
+        }
+
+        // Apply sorting
+        query = pagination.SortBy?.ToLower() switch
+        {
+            "student" => pagination.SortDescending
+                ? query.OrderByDescending(cr => cr.Student.FirstName)
+                : query.OrderBy(cr => cr.Student.FirstName),
+            "course" => pagination.SortDescending
+                ? query.OrderByDescending(cr => cr.Course.CourseCode)
+                : query.OrderBy(cr => cr.Course.CourseCode),
+            "createdat" => pagination.SortDescending
+                ? query.OrderByDescending(cr => cr.CreatedAt)
+                : query.OrderBy(cr => cr.CreatedAt),
+            _ => query.OrderByDescending(cr => cr.CreatedAt)
+        };
+
+        query = query.Include(s => s.Student).Include(c => c.Course);
 
         var (registrations, totalCount) = await query.ToPaginatedListAsync(pagination);
         var registrationDtos = registrations.Select(cr => cr.ToDto()).ToList();
         var metaData = MetaData.Create(pagination.PageIndex, pagination.PageSize, totalCount);
 
-        var response = ApiResponse<List<CourseRegistrationDto>>.Ok(registrationDtos, "Course student registrations retrieved successfully", metaData);
+        var response = ApiResponse<List<CourseRegistrationDto>>.Ok(registrationDtos, "Course registrations retrieved successfully", metaData);
         return Ok(response);
     }
 

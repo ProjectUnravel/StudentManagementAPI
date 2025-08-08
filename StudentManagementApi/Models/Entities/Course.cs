@@ -7,8 +7,7 @@ public class Course
     public Course()
     {
         CourseRegistrations = new HashSet<CourseRegistration>();
-        Attendances = new HashSet<Attendance>();
-        
+        Attendances = new HashSet<Attendance>();        
     }
 
 

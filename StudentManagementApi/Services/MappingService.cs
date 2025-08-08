@@ -124,4 +124,16 @@ public static class MappingService
             CourseId = dto.CourseId
         };
     }
+
+    public static TeamDto ToDto(this Team team) => new()
+    {
+        createdAt = team.CreatedAt,
+        Description = team.Description,
+        Id = team.Id,
+        Name = team.Name
+    };
+
+    public static Team ToEntity(this CreateTeamDto dto) => new() { Name = dto.Name!, Description = dto.Description };
+
+
 }

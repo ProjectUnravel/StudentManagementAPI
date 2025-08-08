@@ -39,4 +39,5 @@ public class Student
     // Navigation properties
     public virtual ICollection<CourseRegistration> CourseRegistrations { get; set; }
     public virtual ICollection<Attendance> Attendances { get; set; }
+    public virtual TeamMember Team { get; set; }
 }
