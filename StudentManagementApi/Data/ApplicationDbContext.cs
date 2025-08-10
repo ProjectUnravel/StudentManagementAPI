@@ -15,6 +15,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Attendance> Attendances { get; set; }
     public DbSet<Team> Teams { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
+    public DbSet<Models.Entities.Task> Tasks { get; set; }
+    public DbSet<TaskScore> TaskScores { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,6 +100,42 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Id).ValueGeneratedOnAdd();
 
+        });
+
+        // Configure Task entity
+        modelBuilder.Entity<Models.Entities.Task>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.MaxObtainableScore).IsRequired();
+
+            entity.HasOne(e => e.Course)
+                  .WithMany()
+                  .HasForeignKey(e => e.CourseId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure TaskScore entity
+        modelBuilder.Entity<TaskScore>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Score).IsRequired();
+
+            entity.HasOne(e => e.Task)
+                  .WithMany(t => t.TaskScores)
+                  .HasForeignKey(e => e.TaskId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Student)
+                  .WithMany()
+                  .HasForeignKey(e => e.StudentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Ensure a student can only have one score per task
+            entity.HasIndex(e => new { e.TaskId, e.StudentId }).IsUnique();
         });
     }
 }

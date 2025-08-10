@@ -135,5 +135,67 @@ public static class MappingService
 
     public static Team ToEntity(this CreateTeamDto dto) => new() { Name = dto.Name!, Description = dto.Description };
 
+    // Task mappings
+    public static TaskDto ToDto(this Models.Entities.Task task)
+    {
+        return new TaskDto
+        {
+            Id = task.Id,
+            Title = task.Title,
+            Description = task.Description,
+            CourseId = task.CourseId,
+            Course = task.Course?.ToDto(),
+            MaxObtainableScore = task.MaxObtainableScore,
+            CreatedAt = task.CreatedAt,
+            TaskScoresCount = task.TaskScores.Count
+        };
+    }
 
+    public static Models.Entities.Task ToEntity(this CreateTaskDto dto)
+    {
+        return new Models.Entities.Task
+        {
+            Title = dto.Title,
+            Description = dto.Description,
+            CourseId = dto.CourseId,
+            MaxObtainableScore = dto.MaxObtainableScore
+        };
+    }
+
+    public static void UpdateEntity(this UpdateTaskDto dto, Models.Entities.Task task)
+    {
+        task.Title = dto.Title;
+        task.Description = dto.Description;
+        task.MaxObtainableScore = dto.MaxObtainableScore;
+    }
+
+    // TaskScore mappings
+    public static TaskScoreDto ToDto(this TaskScore taskScore)
+    {
+        return new TaskScoreDto
+        {
+            Id = taskScore.Id,
+            TaskId = taskScore.TaskId,
+            Task = taskScore.Task?.ToDto(),
+            StudentId = taskScore.StudentId,
+            Student = taskScore.Student?.ToDto(),
+            Score = taskScore.Score,
+            CreatedAt = taskScore.CreatedAt
+        };
+    }
+
+    public static TaskScore ToEntity(this CreateTaskScoreDto dto)
+    {
+        return new TaskScore
+        {
+            TaskId = dto.TaskId,
+            StudentId = dto.StudentId,
+            Score = dto.Score
+        };
+    }
+
+    public static void UpdateEntity(this UpdateTaskScoreDto dto, TaskScore taskScore)
+    {
+        taskScore.Score = dto.Score;
+    }
 }

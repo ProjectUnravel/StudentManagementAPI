@@ -5,6 +5,7 @@ using StudentManagementApi.Models;
 using StudentManagementApi.DTOs;
 using StudentManagementApi.Services;
 using StudentManagementApi.Extensions;
+using Serilog;
 
 namespace StudentManagementApi.Controllers;
 
@@ -13,6 +14,7 @@ namespace StudentManagementApi.Controllers;
 public class StudentsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly Serilog.ILogger _logger = Log.ForContext<StudentsController>();
 
     public StudentsController(ApplicationDbContext context)
     {
@@ -23,6 +25,8 @@ public class StudentsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<StudentDto>>>> GetStudents([FromQuery] PaginationRequest pagination)
     {
+        _logger.Information("Retrieving students with pagination: {@Pagination}", pagination);
+        
         var query = _context.Students.AsQueryable();
 
         // Apply search filter
@@ -55,6 +59,9 @@ public class StudentsController : ControllerBase
         var studentDtos = students.Select(s => s.ToDto()).ToList();
         var metaData = MetaData.Create(pagination.PageIndex, pagination.PageSize, totalCount);
 
+        _logger.Information("Successfully retrieved {StudentCount} students out of {TotalCount} with search: {SearchTerm}", 
+            studentDtos.Count, totalCount, pagination.Search ?? "None");
+        
         var response = ApiResponse<List<StudentDto>>.Ok(studentDtos, "Students retrieved successfully", metaData);
         return Ok(response);
     }
@@ -63,15 +70,19 @@ public class StudentsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<StudentDto>>> GetStudent(Guid id)
     {
+        _logger.Information("Retrieving student with ID: {StudentId}", id);
+        
         var student = await _context.Students
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (student == null)
         {
+            _logger.Warning("Student not found with ID: {StudentId}", id);
             var notFoundResponse = ApiResponse<StudentDto>.NotFound("Student not found");
             return NotFound(notFoundResponse);
         }
 
+        _logger.Information("Successfully retrieved student: {StudentEmail}", student.Email);
         var studentDto = student.ToDto();
         var response = ApiResponse<StudentDto>.Ok(studentDto, "Student retrieved successfully");
         return Ok(response);
@@ -81,6 +92,8 @@ public class StudentsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiResponse<StudentDto>>> PostStudent(CreateStudentDto studentDto)
     {
+        _logger.Information("Creating new student with email: {StudentEmail}", studentDto.Email);
+        
         try
         {
             var student = studentDto.ToEntity();
@@ -89,18 +102,23 @@ public class StudentsController : ControllerBase
 
             _context.Students.Add(student);
             await _context.SaveChangesAsync();
+            
+            _logger.Information("Successfully created student with ID: {StudentId}, Email: {StudentEmail}", 
+                student.Id, student.Email);
 
             var createdStudentDto = student.ToDto();
             var response = ApiResponse<StudentDto>.Created(createdStudentDto, "Student created successfully");
             return CreatedAtAction("GetStudent", new { id = student.Id }, response);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex)
         {
+            _logger.Warning(ex, "Failed to create student - email already exists: {StudentEmail}", studentDto.Email);
             var errorResponse = ApiResponse<StudentDto>.Fail("Student with this email already exists", 409);
             return Conflict(errorResponse);
         }
         catch (Exception ex)
         {
+            _logger.Error(ex, "Unexpected error creating student: {StudentEmail}", studentDto.Email);
             var errorResponse = ApiResponse<StudentDto>.Fail($"An error occurred: {ex.Message}", 500);
             return StatusCode(500, errorResponse);
         }
@@ -110,26 +128,34 @@ public class StudentsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<StudentDto>>> PutStudent(Guid id, UpdateStudentDto studentDto)
     {
+        _logger.Information("Updating student with ID: {StudentId}", id);
+        
         try
         {
             var existingStudent = await _context.Students.FindAsync(id);
             if (existingStudent == null)
             {
+                _logger.Warning("Student not found for update with ID: {StudentId}", id);
                 var notFoundResponse = ApiResponse<StudentDto>.NotFound("Student not found");
                 return NotFound(notFoundResponse);
             }
 
+            _logger.Information("Updating student details for: {StudentEmail}", existingStudent.Email);
+            
             // Update only the allowed fields
             studentDto.UpdateEntity(existingStudent);
 
             await _context.SaveChangesAsync();
+            
+            _logger.Information("Successfully updated student: {StudentId}", id);
 
             var updatedStudentDto = existingStudent.ToDto();
             var response = ApiResponse<StudentDto>.Ok(updatedStudentDto, "Student updated successfully");
             return Ok(response);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException ex)
         {
+            _logger.Warning(ex, "Concurrency error updating student: {StudentId}", id);
             if (!StudentExists(id))
             {
                 var notFoundResponse = ApiResponse<StudentDto>.NotFound("Student not found");
@@ -143,6 +169,7 @@ public class StudentsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.Error(ex, "Unexpected error updating student: {StudentId}", id);
             var errorResponse = ApiResponse<StudentDto>.Fail($"An error occurred: {ex.Message}", 500);
             return StatusCode(500, errorResponse);
         }
@@ -152,23 +179,31 @@ public class StudentsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteStudent(Guid id)
     {
+        _logger.Information("Deleting student with ID: {StudentId}", id);
+        
         try
         {
             var student = await _context.Students.FindAsync(id);
             if (student == null)
             {
+                _logger.Warning("Student not found for deletion with ID: {StudentId}", id);
                 var notFoundResponse = ApiResponse<object>.NotFound("Student not found");
                 return NotFound(notFoundResponse);
             }
 
+            _logger.Information("Deleting student: {StudentEmail}", student.Email);
+            
             _context.Students.Remove(student);
             await _context.SaveChangesAsync();
+            
+            _logger.Information("Successfully deleted student with ID: {StudentId}", id);
 
             var response = ApiResponse<object>.Ok("Student deleted successfully");
             return Ok(response);
         }
         catch (Exception ex)
         {
+            _logger.Error(ex, "Unexpected error deleting student: {StudentId}", id);
             var errorResponse = ApiResponse<object>.Fail($"An error occurred: {ex.Message}", 500);
             return StatusCode(500, errorResponse);
         }

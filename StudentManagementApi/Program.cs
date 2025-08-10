@@ -1,7 +1,23 @@
 using Microsoft.EntityFrameworkCore;
 using StudentManagementApi.Data;
+using StudentManagementApi.Middleware;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .WriteTo.Console()
+    .WriteTo.File("logs/api-.log", 
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30)
+    .WriteTo.Seq("http://localhost:5341") // Optional: Remove if Seq is not available
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "StudentManagementApi")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 var db_version = new MySqlServerVersion(new Version(8, 0, 40)); // Specify the server version
@@ -54,6 +70,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Add global exception handler middleware (should be early in the pipeline)
+app.UseGlobalExceptionHandler();
+
+// Add Serilog request logging middleware
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+        diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+        diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].FirstOrDefault());
+    };
+});
+
 app.UseHttpsRedirection();
 
 app.UseCors("AllowReactApp");
@@ -62,4 +93,16 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+try
+{
+    Log.Information("Starting Student Management API");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
