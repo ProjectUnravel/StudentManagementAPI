@@ -6,6 +6,7 @@ using StudentManagementApi.DTOs;
 using StudentManagementApi.Services;
 using StudentManagementApi.Extensions;
 using StudentManagementApi.Models.Entities;
+using Task = StudentManagementApi.Models.Entities.Task;
 
 namespace StudentManagementApi.Controllers;
 
@@ -150,9 +151,13 @@ public class AttendanceController : ControllerBase
                 return NotFound(notFoundResponse);
             }
 
+            var courseTitle = await _context.Courses.Where(x => x.Id == request.CourseId).Select(x => x.CourseTitle).FirstOrDefaultAsync();
+            if (string.IsNullOrWhiteSpace(courseTitle))
+                return NotFound(ApiResponse<AttendanceDto>.NotFound("Course not found"));
+
             // Check if student already has an active attendance record (clocked in but not clocked out)
             var activeAttendance = await _context.Attendances
-                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && 
+                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId &&
                                         a.ClockIn != null && a.ClockOut == null);
 
             if (activeAttendance != null)
@@ -161,16 +166,28 @@ public class AttendanceController : ControllerBase
                 return Conflict(conflictResponse);
             }
 
-            var attendance = new Attendance
-            {
-                Id = Guid.NewGuid(),
-                StudentId = request.StudentId,
-                ClockIn = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
-                CourseId = request.CourseId,
-            };
+            var currentDate = DateTime.UtcNow;
+            //check if this is the first clockin for the day for the course
+            string taskTitle = $"Attendance for {currentDate:ddd dd MMM, yyyy}";
 
-            _context.Attendances.Add(attendance);
+            var taskId = await _context.Tasks.Where(x => x.CourseId == request.CourseId
+                                                         && x.CreatedAt.Date == currentDate.Date
+                                                         && x.Title == taskTitle)
+                                             .Select(x => x.Id)
+                                             .FirstOrDefaultAsync();
+
+            var isFirstClockin = await _context.Attendances.AnyAsync(x => x.CourseId == request.CourseId && x.CreatedAt.Date == currentDate.Date);
+
+            if (!isFirstClockin && taskId == Guid.Empty)
+            {
+                Task attendanceTask = await CreateAttendanceTask(request, courseTitle, currentDate);
+                taskId = attendanceTask.Id;
+            }
+
+            Attendance attendance = await SaveAttendanceRecord(request);
+
+            await ScoreAttendanceTask(request, taskId);
+
             await _context.SaveChangesAsync();
 
             // Load the student information
@@ -187,6 +204,52 @@ public class AttendanceController : ControllerBase
             var errorResponse = ApiResponse<AttendanceDto>.Fail($"An error occurred: {ex.Message}", 500);
             return StatusCode(500, errorResponse);
         }
+    }
+
+    private async Task<Task> CreateAttendanceTask(ClockInRequestDto request, string courseTitle, DateTime currentDate)
+    {
+        //create a task for attendance
+        var attendanceTask = new Task()
+        {
+            Title = $"{courseTitle} Attendance for {currentDate:ddd dd MMM, yyyy}",
+            Description = $"Daily attendance task for {courseTitle}",
+            MaxObtainableScore = 5,
+            CourseId = request.CourseId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Tasks.AddAsync(attendanceTask);
+        return attendanceTask;
+    }
+
+    private async System.Threading.Tasks.Task ScoreAttendanceTask(ClockInRequestDto request, Guid taskId)
+    {
+        //score the student
+        var attendanceScore = new TaskScore()
+        {
+            CreatedAt = DateTime.UtcNow,
+            StudentId = request.StudentId,
+            TaskId = taskId,
+            Score = 5,
+        };
+
+        await _context.TaskScores.AddAsync(attendanceScore);
+        
+    }
+
+    private async Task<Attendance> SaveAttendanceRecord(ClockInRequestDto request)
+    {
+        var attendance = new Attendance
+        {
+            Id = Guid.NewGuid(),
+            StudentId = request.StudentId,
+            ClockIn = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            CourseId = request.CourseId,
+        };
+
+        await _context.Attendances.AddAsync(attendance);
+        return attendance;
     }
 
     // POST: api/Attendance/clockout
@@ -298,5 +361,71 @@ public class AttendanceController : ControllerBase
     {
         return _context.Attendances.Any(e => e.Id == id);
     }
+
+    //[HttpGet("sync")]
+    //public async Task<IActionResult> Sync()
+    //{
+    //    try
+    //    {
+    //        var currentDate = DateTime.UtcNow;
+
+    //        var attendances = await _context.Attendances.AsNoTracking().Include(x => x.Course).ToListAsync();
+
+    //        //group attendance by course
+
+    //        var groupedAttendance = attendances.GroupBy(x => x.CourseId);
+
+    //        List<Task> taskList = [];
+    //        List<TaskScore> taskScores = [];
+    //        foreach (var group in groupedAttendance)
+    //        {
+    //            string taskTitle = $"{group.FirstOrDefault().Course.CourseTitle} Attendance for {currentDate:ddd dd MMM, yyyy}";
+
+    //            //create a task
+    //            var task = new Task()
+    //            {
+    //                CourseId = group.Key,
+    //                MaxObtainableScore = 5,
+    //                CreatedAt = currentDate,
+    //                Title = taskTitle,
+    //                Description = $"Daily attendance task for {group.FirstOrDefault().Course.CourseTitle}",
+    //                Id = Guid.NewGuid()
+    //            };
+
+    //            //score task for each student
+
+    //            foreach (var student in group)
+    //            {
+    //                var taskScore = new TaskScore()
+    //                {
+    //                    TaskId = task.Id,
+    //                    Score = 5,
+    //                    StudentId = student.StudentId,
+    //                    CreatedAt = currentDate,
+    //                    Id = Guid.NewGuid()
+    //                };
+
+    //                taskScores = [.. taskScores, taskScore];
+    //            }
+
+    //            taskList = [.. taskList, task];
+    //        }
+
+    //        await _context.Tasks.AddRangeAsync(taskList);
+
+    //        await _context.TaskScores.AddRangeAsync(taskScores);
+
+    //        var res = await _context.SaveChangesAsync();
+
+    //        return Ok(res);
+    //    }
+    //    catch (Exception e)
+    //    {
+
+    //        throw;
+    //    }
+    //}
+
+
 }
 

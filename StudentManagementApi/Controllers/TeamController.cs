@@ -116,9 +116,13 @@ public class TeamController : ControllerBase
         if (team is null)
             return NotFound(ApiResponse<string>.NotFound("team not found"));
 
+        var teamMembers = await _context.TeamMembers.Where(x => x.TeamId == id).ToListAsync();
+
         team.IsActive = false;
 
         _context.Teams.Update(team);
+
+        _context.TeamMembers.RemoveRange(teamMembers);
 
         await _context.SaveChangesAsync();
 
