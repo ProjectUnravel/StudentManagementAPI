@@ -154,10 +154,12 @@ public class AttendanceController : ControllerBase
             var courseTitle = await _context.Courses.Where(x => x.Id == request.CourseId).Select(x => x.CourseTitle).FirstOrDefaultAsync();
             if (string.IsNullOrWhiteSpace(courseTitle))
                 return NotFound(ApiResponse<AttendanceDto>.NotFound("Course not found"));
+            
+            var currentDate = DateTime.UtcNow;
 
             // Check if student already has an active attendance record (clocked in but not clocked out)
             var activeAttendance = await _context.Attendances
-                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId &&
+                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.CourseId == request.CourseId && a.CreatedAt.Date == currentDate.Date &&
                                         a.ClockIn != null && a.ClockOut == null);
 
             if (activeAttendance != null)
@@ -166,9 +168,8 @@ public class AttendanceController : ControllerBase
                 return Conflict(conflictResponse);
             }
 
-            var currentDate = DateTime.UtcNow;
             //check if this is the first clockin for the day for the course
-            string taskTitle = $"Attendance for {currentDate:ddd dd MMM, yyyy}";
+            string taskTitle = $"{courseTitle} Attendance for {currentDate:ddd dd MMM, yyyy}";
 
             var taskId = await _context.Tasks.Where(x => x.CourseId == request.CourseId
                                                          && x.CreatedAt.Date == currentDate.Date
@@ -180,7 +181,7 @@ public class AttendanceController : ControllerBase
 
             if (!isFirstClockin && taskId == Guid.Empty)
             {
-                Task attendanceTask = await CreateAttendanceTask(request, courseTitle, currentDate);
+                Task attendanceTask = await CreateAttendanceTask(request, courseTitle, taskTitle);
                 taskId = attendanceTask.Id;
             }
 
@@ -206,12 +207,12 @@ public class AttendanceController : ControllerBase
         }
     }
 
-    private async Task<Task> CreateAttendanceTask(ClockInRequestDto request, string courseTitle, DateTime currentDate)
+    private async Task<Task> CreateAttendanceTask(ClockInRequestDto request, string courseTitle, string taskTitle)
     {
         //create a task for attendance
         var attendanceTask = new Task()
         {
-            Title = $"{courseTitle} Attendance for {currentDate:ddd dd MMM, yyyy}",
+            Title = taskTitle,
             Description = $"Daily attendance task for {courseTitle}",
             MaxObtainableScore = 5,
             CourseId = request.CourseId,
