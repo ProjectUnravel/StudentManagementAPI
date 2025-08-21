@@ -158,9 +158,11 @@ public class AttendanceController : ControllerBase
             var currentDate = DateTime.UtcNow;
 
             // Check if student already has an active attendance record (clocked in but not clocked out)
-            var activeAttendance = await _context.Attendances
-                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.CourseId == request.CourseId && a.CreatedAt.Date == currentDate.Date &&
-                                        a.ClockIn != null && a.ClockOut == null);
+            var activeAttendance = await _context.Attendances.FirstOrDefaultAsync(a => a.StudentId == request.StudentId
+                                                                                       && a.CourseId == request.CourseId
+                                                                                       && a.CreatedAt.Date == currentDate.Date
+                                                                                       && a.ClockIn != null
+                                                                                       && a.ClockOut == null);
 
             if (activeAttendance != null)
             {
@@ -259,11 +261,16 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            var currentDate = DateTime.UtcNow;
+
             // Find the active attendance record for the student
             var activeAttendance = await _context.Attendances
                 .Include(a => a.Student)
-                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.CourseId == request.CourseId && 
-                                        a.ClockIn != null && a.ClockOut == null);
+                .FirstOrDefaultAsync(a => a.StudentId == request.StudentId
+                                          && a.CourseId == request.CourseId
+                                          && a.CreatedAt.Date == currentDate.Date
+                                          && a.ClockIn != null
+                                          && a.ClockOut == null);
 
             if (activeAttendance == null)
             {
